@@ -1,0 +1,90 @@
+{
+  "data_dir": "/projects/bcrv/ffontinelenunes/transformer/tempo/data/photo_events",
+  "stats_file": "feature_stats_day100.npz",
+  "manifest_dir": null,
+  "path_prefix": null,
+  "horizon_days": 100.0,
+  "drop_i_band": true,
+  "min_obs_total": 8,
+  "min_obs_g": 2,
+  "min_obs_r": 2,
+  "min_obs_i": 0,
+  "min_bands_observed": 2,
+  "batch_size": 256,
+  "num_workers": 8,
+  "d_model": 192,
+  "n_heads": 8,
+  "n_layers": 6,
+  "dropout": 0.3,
+  "max_len": 257,
+  "pool": "cls",
+  "band_mode": "embed",
+  "band_embed_dim": 8,
+  "time_encoding": "dt_first",
+  "use_global_features": true,
+  "global_feature_set": "physics",
+  "global_hidden_dim": 192,
+  "lr": 0.0003,
+  "weight_decay": 0.01,
+  "epochs": 220,
+  "patience": 10,
+  "grad_clip_norm": 1.0,
+  "p_token_dropout": 0.1,
+  "jitter_scale": 0.1,
+  "flux_nu": 8,
+  "flux_jitter_frac": 0.14,
+  "train_random_horizon": true,
+  "train_random_horizon_min_days": 4.0,
+  "train_random_horizon_power": 1.4,
+  "train_curriculum_epochs": 45,
+  "train_curriculum_start_days": 20.0,
+  "use_weighted_sampler": false,
+  "oversample": true,
+  "oversample_classes": [
+    2
+  ],
+  "oversample_target": "median",
+  "oversample_target_count": 0,
+  "edl_anneal_epochs": 10,
+  "edl_kl_strength": 0.001,
+  "edl_sup_strength": 0.02,
+  "label_smoothing": 0.02,
+  "class_balance_beta": 0.999,
+  "use_class_balanced_loss": false,
+  "focal_gamma": 0.75,
+  "margin_loss_strength": 0.12,
+  "margin_delta": 0.06,
+  "margin_pairs": [
+    [
+      2,
+      3
+    ],
+    [
+      3,
+      2
+    ],
+    [
+      2,
+      1
+    ],
+    [
+      1,
+      2
+    ],
+    [
+      1,
+      0
+    ],
+    [
+      0,
+      1
+    ]
+  ],
+  "use_ema": true,
+  "ema_decay": 0.999,
+  "seed": 42,
+  "taxonomy_preset": "transient_variable_5c",
+  "ckpt_select_metric": "composite_prod",
+  "ckpt_select_focus_class": "TDE",
+  "out_dir": "/work/nvme/bcrv/ffontinelenunes/tempo_runs/sota_sota_push_earlyuq_2026_04_15_185642/d_train/p26_tv5_margin_refine_012_006"
+}

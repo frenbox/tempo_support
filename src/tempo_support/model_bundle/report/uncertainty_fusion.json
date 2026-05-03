@@ -1,0 +1,39 @@
+{
+  "base_keys": [
+    "vacuity",
+    "entropy",
+    "expected_entropy",
+    "mi",
+    "trace_uncertainty"
+  ],
+  "medians": {
+    "vacuity": 0.1683005839586258,
+    "entropy": 0.5956414341926575,
+    "expected_entropy": 0.5381066203117371,
+    "mi": 0.0572890043258667,
+    "trace_uncertainty": 0.09121186286211014
+  },
+  "scales": {
+    "vacuity": 0.006911184757947921,
+    "entropy": 0.04321965934038162,
+    "expected_entropy": 0.03921261702775955,
+    "mi": 0.002852136790752411,
+    "trace_uncertainty": 0.006506970034539699
+  },
+  "weights": {
+    "vacuity": 0.27461022707853755,
+    "entropy": 0.36955800605140676,
+    "expected_entropy": 0.3721464400237231,
+    "mi": 0.2988108281983495,
+    "trace_uncertainty": 0.35421336737668496
+  },
+  "auroc_error_val": {
+    "vacuity": 0.7746102270785375,
+    "entropy": 0.8695580060514068,
+    "expected_entropy": 0.8721464400237231,
+    "mi": 0.7988108281983495,
+    "trace_uncertainty": 0.854213367376685
+  },
+  "rule": "weighted_robust_zsum",
+  "rule_note": "fused = sum_k w_k * ((u_k - median_k)/scale_k) / sum_k w_k, where w_k=max(AUROC(error|u_k)-0.5,0)."
+}

@@ -1,0 +1,21 @@
+{
+  "thresholds": [
+    0.3292212773560518,
+    0.6598274997613375,
+    0.30017076811970916,
+    0.3490105309307171,
+    0.6916286380275825
+  ],
+  "uncertainty_score": "expected_entropy",
+  "uncertainty_gate_strategy": "classwise_pred",
+  "uncertainty_cut": NaN,
+  "uncertainty_cut_by_pred_class": {
+    "0": 0.7123846411705017,
+    "1": 0.9957265853881836,
+    "2": 1.0401546955108643,
+    "3": 0.6023554801940918,
+    "4": 0.981473445892334
+  },
+  "val_macro_fbeta_at_cut": 0.9561766095920629,
+  "val_coverage_at_cut": 0.848714069591528
+}

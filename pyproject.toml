@@ -1,0 +1,34 @@
+[project]
+name = "tempo-support"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "frenbox",email = "frenbox.ss@gmail.com"}
+]
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "confluent-kafka (>=2.12.2,<3.0.0)",
+    "fastavro (>=1.12.1,<2.0.0)",
+    "dotenv (>=0.9.9,<0.10.0)",
+    "pymongo (>=4.16.0,<5.0.0)",
+    "requests (>=2.31.0,<3.0.0)",
+    "torch (>=2.2,<3.0)",
+    "numpy",
+    "pandas",
+    "matplotlib",
+    "scipy",
+    "scikit-learn",
+    "nbformat",
+    "seaborn"
+]
+
+[tool.poetry]
+packages = [{include = "tempo_support", from = "src"}]
+include = [
+    { path = "src/tempo_support/model_bundle/**/*", format = ["sdist", "wheel"] },
+]
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
