@@ -20,6 +20,7 @@ FILTER_NAME = "superphot_ztf"
 MODEL_TITLE = "TEMPO"
 FRITZ_BASE_URL = "https://fritz.science"
 RESULTS_CSV = Path("results") / "tempo_ztf_results.csv"
+POST_TO_SLACK = False  # Slack uploads paused; flip to True to re-enable.
 FRITZ_ANNOTATION_ORIGIN = "tempo"
 FRITZ_GROUP_IDS = [1973]  # UMN TEMPO — annotation visibility scope.
 
@@ -332,7 +333,9 @@ def consume():
                     ),
                 )
 
-                if not fritz_classifications:
+                if not POST_TO_SLACK:
+                    logger.debug("[%s] Slack posting disabled, skipping", ztf_id)
+                elif not fritz_classifications:
                     logger.info("[%s] no Fritz classification, skipping Slack post", ztf_id)
                 else:
                     try:
