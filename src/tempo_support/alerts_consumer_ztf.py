@@ -12,7 +12,7 @@ from dotenv import load_dotenv
 from pymongo import MongoClient
 
 from tempo_support.slack_post import format_message, post_to_slack
-from tempo_support.tempo_boom_ztf import run_tempo
+from tempo_support.tempo_boom_ztf import get_taxonomy, leaf_class_probs, run_tempo
 
 LOG_FILE = "tempo_ztf.log"
 KAFKA_TOPIC = "ZTF_alerts_results"
@@ -20,6 +20,8 @@ FILTER_NAME = "superphot_ztf"
 MODEL_TITLE = "TEMPO"
 FRITZ_BASE_URL = "https://fritz.science"
 RESULTS_CSV = Path("results") / "tempo_ztf_results.csv"
+FRITZ_ANNOTATION_ORIGIN = "tempo"
+FRITZ_GROUP_IDS = [1973]  # UMN TEMPO — annotation visibility scope.
 
 logging.basicConfig(
     level=logging.INFO,
@@ -136,6 +138,94 @@ def _fritz_url(ztf_id):
     return f"{FRITZ_BASE_URL}/alerts/ztf/{ztf_id}"
 
 
+def _ordered_class_probs(class_probs, taxonomy):
+    """Order leaf-class probabilities as a pre-order walk of the taxonomy.
+
+    Classes are grouped by their hierarchy path (domain -> family -> class), so
+    Transient/SN classes come before Variable classes. Keys not present in the
+    taxonomy are appended at the end in their original order (defensive).
+    """
+    paths = getattr(taxonomy, "broad2hierarchy_path", {}) or {}
+    known = sorted(
+        (c for c in class_probs if c in paths),
+        key=lambda c: tuple(paths.get(c, [c])),
+    )
+    ordered = {c: class_probs[c] for c in known}
+    for k, v in class_probs.items():
+        if k not in ordered:
+            ordered[k] = v
+    return ordered
+
+
+def _get_annotation_id(ztf_id, origin, headers):
+    """Fetch the annotation ID for a source by origin, or None."""
+    endpoint = f"{FRITZ_BASE_URL}/api/sources/{ztf_id}/annotations"
+    try:
+        resp_json = requests.get(endpoint, headers=headers, timeout=10).json()
+        if resp_json.get("status") == "success":
+            for ann in resp_json.get("data", []):
+                if ann.get("origin") == origin:
+                    return ann.get("annotation_id") or ann.get("id")
+    except Exception:
+        logger.exception("[%s] Failed to fetch existing annotations", ztf_id)
+    return None
+
+
+def annotate_fritz(class_probs, ztf_id, taxonomy, origin=FRITZ_ANNOTATION_ORIGIN,
+                   group_ids=None, previous_annotation_id=None):
+    """Post (or update) per-class probability annotations on Fritz.
+
+    The probability dict is ordered as a pre-order taxonomy walk (Transient/SN
+    classes, then Variable classes). On a duplicate-origin POST failure, falls
+    back to fetching the existing annotation and updating it via PUT.
+
+    Returns the annotation_id of the created/updated annotation, or None.
+    """
+    fritz_token = os.getenv("FRITZ_TOKEN")
+    if not fritz_token:
+        logger.warning("[%s] FRITZ_TOKEN not set, skipping annotation", ztf_id)
+        return None
+
+    headers = {
+        "Authorization": f"token {fritz_token}",
+        "Content-Type": "application/json",
+    }
+
+    data = {
+        k: float(v) if isinstance(v, (int, float)) else v
+        for k, v in _ordered_class_probs(class_probs, taxonomy).items()
+    }
+    payload = {"origin": origin, "data": data}
+    if group_ids is not None:
+        payload["group_ids"] = group_ids
+
+    base = f"{FRITZ_BASE_URL}/api/sources/{ztf_id}/annotations"
+    if previous_annotation_id is not None:
+        response = requests.put(f"{base}/{previous_annotation_id}", json=payload,
+                                headers=headers, timeout=10)
+    else:
+        response = requests.post(base, json=payload, headers=headers, timeout=10)
+
+    resp_json = response.json()
+    if resp_json.get("status") == "success":
+        data_resp = resp_json.get("data", {})
+        logger.info("[%s] Annotation saved.", ztf_id)
+        return data_resp.get("annotation_id") or data_resp.get("id")
+
+    # POST likely failed due to duplicate origin — fetch existing and PUT.
+    logger.warning("[%s] Annotation POST failed: %s", ztf_id, resp_json.get("message"))
+    if previous_annotation_id is None:
+        existing_id = _get_annotation_id(ztf_id, origin, headers)
+        if existing_id is not None:
+            retry = requests.put(f"{base}/{existing_id}", json=payload,
+                                 headers=headers, timeout=10).json()
+            if retry.get("status") == "success":
+                logger.info("[%s] Annotation updated via fallback PUT.", ztf_id)
+                return existing_id
+            logger.error("[%s] Fallback PUT failed: %s", ztf_id, retry.get("message"))
+    return None
+
+
 def read_avro(msg):
     bytes_io = io.BytesIO(msg.value())
     bytes_io.seek(0)
@@ -223,6 +313,15 @@ def consume():
                 link = _fritz_url(ztf_id)
                 fritz_classifications = _fritz_classifications(ztf_id)
                 _append_csv(ztf_id, result, fritz_classifications)
+
+                try:
+                    annotation_id = annotate_fritz(
+                        leaf_class_probs(result), ztf_id, get_taxonomy(),
+                        group_ids=FRITZ_GROUP_IDS,
+                    )
+                    logger.info("[%s] Fritz annotation: %s", ztf_id, annotation_id)
+                except Exception:
+                    logger.exception("[%s] Fritz annotation failed", ztf_id)
 
                 fritz_block = _format_fritz_block(fritz_classifications)
                 logger.info(

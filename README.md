@@ -11,7 +11,8 @@ For each ZTF alert that passes the configured Fritz filter:
 1. **Fetch history** — looks up the object's `prv_candidates` (previous detections) from BOOM's MongoDB.
 2. **Convert photometry** — turns ZTF `magpsf`/`sigmapsf` rows into a Fritz-style flux dataframe (microjansky, zeropoint 23.9), keeping only public program IDs (`1`, `2`) and positive-difference detections.
 3. **Classify** — runs TEMPO over a configurable light-curve window (default: first 100 days), producing per-class probabilities, calibrated uncertainties, a hierarchical decision (with abstention), and an out-of-distribution flag.
-4. **Record & report** — appends a row to a results CSV, fetches existing Fritz classifications for comparison, and posts a sunburst image + probability table to Slack (only when a Fritz classification already exists).
+4. **Annotate Fritz** — posts the leaf-class probabilities back to the source on [Fritz](https://fritz.science) as an annotation (origin `tempo`), creating a new annotation or updating the existing one for that origin.
+5. **Record & report** — appends a row to a results CSV, fetches existing Fritz classifications for comparison, and posts a sunburst image + probability table to Slack (only when a Fritz classification already exists).
 
 The model uses a 5-class hierarchical taxonomy (`transient_variable_5c`) built on an evidential transformer with Time2Vec time encoding, temperature scaling, uncertainty fusion, and selective-prediction gating.
 
@@ -32,7 +33,7 @@ Runtime configuration is read from environment variables, loaded from `~/.env` v
 | Variable | Purpose | Required |
 | --- | --- | --- |
 | `BOOM_DATABASE__USERNAME` / `BOOM_DATABASE__PASSWORD` | MongoDB auth for the `boom` database (falls back to unauthenticated `localhost:27017`) | No |
-| `FRITZ_TOKEN` | Fritz API token — fetches existing classifications and resolves source URLs | No (degrades gracefully) |
+| `FRITZ_TOKEN` | Fritz API token — fetches existing classifications, resolves source URLs, and posts TEMPO annotations | No (degrades gracefully; annotations are skipped without it) |
 | `SLACK_TEMPO_BOT_TOKEN` | Slack bot token for file uploads | For Slack posts |
 | `SLACK_TEMPO_CHANNEL_ID` | Target Slack channel ID | For Slack posts |
 | `TEMPO_BUNDLE_DIR` | Override the model bundle location (defaults to the bundled `model_bundle/`) | No |
@@ -51,7 +52,9 @@ The consumer also expects:
 poetry run python -m tempo_support.alerts_consumer_ztf
 ```
 
-This subscribes to the Kafka topic, processes alerts that pass the `superphot_ztf` filter, writes results to `results/tempo_ztf_results.csv`, logs to `tempo_ztf.log`, and posts to Slack. It commits offsets manually after each message and shuts down cleanly on `Ctrl-C`.
+This subscribes to the Kafka topic, processes alerts that pass the `superphot_ztf` filter, annotates each source on Fritz, writes results to `results/tempo_ztf_results.csv`, logs to `tempo_ztf.log`, and posts to Slack. It commits offsets manually after each message and shuts down cleanly on `Ctrl-C`.
+
+> **Fritz annotation scope:** annotations are posted to the **UMN TEMPO** group (`FRITZ_GROUP_IDS = [1973]`) under origin `tempo`. Adjust `FRITZ_GROUP_IDS` at the top of [alerts_consumer_ztf.py](src/tempo_support/alerts_consumer_ztf.py) to change visibility.
 
 ### Run inference programmatically
 
@@ -77,7 +80,7 @@ This prints the converted photometry, class probabilities (± calibrated std), t
 
 ```
 src/tempo_support/
-├── alerts_consumer_ztf.py   # Kafka consumer → Mongo lookup → TEMPO → CSV + Slack
+├── alerts_consumer_ztf.py   # Kafka consumer → Mongo lookup → TEMPO → Fritz annotation + CSV + Slack
 ├── tempo_boom_ztf.py        # ZTF prv_candidates → photometry → run_tempo()
 ├── slack_post.py            # format_message / post_to_slack helpers
 ├── plot_tempo.py            # plotly sunburst of the taxonomy + probabilities
