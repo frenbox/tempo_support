@@ -237,7 +237,7 @@ def read_avro(msg):
 consumer = Consumer({
     "bootstrap.servers": "localhost:9092",
     "group.id": "umn_boom_kafka_consumer_group_tempo_ztf",
-    "auto.offset.reset": "earliest",
+    "auto.offset.reset": "latest",
     "enable.auto.commit": False,
     "session.timeout.ms": 6000,
     "max.poll.interval.ms": 300000,
